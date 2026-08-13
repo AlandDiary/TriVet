@@ -1,6 +1,3 @@
-
-https://github.com/user-attachments/assets/29e818e7-156f-4373-8294-8085940cc967
-
 # 🐾 TriVet: Enterprise-Grade Offline-First Veterinary ERP & Autonomous CRM
 
 **[ 🔗 Watch the Clinic Director's Endorsement ](https://youtube.com/shorts/YXOO-PCw0xQ?feature=share)**
