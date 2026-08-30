@@ -20,9 +20,9 @@ I built a global Fetch Interceptor that overwrites the browser's native `window.
 
 ### 5. In an offline-first environment where iPads experience network stutters, users often "double-tap" the submit button. How do you mathematically guarantee a checkout transaction is never billed twice?
 
-I implemented a strict Idempotency Lock at the application layer. When a user initiates a checkout, the frontend generates a unique cryptographic payload (a `transaction_id` combining a timestamp and randomized entropy). 
+I implemented a strict Idempotency Lock at the application layer. When a user initiates a checkout, the frontend generates a unique cryptographic payload (a transaction_id combining a timestamp and randomized entropy).
 
-When the POST request hits the Waitress WSGI server, it enters a `threading.Lock()` context manager before ever touching the database. It checks an in-memory `PROCESSED_TRANSACTIONS` set. If the ID exists, the thread immediately aborts and returns an error preventing the duplicate sale. If it's new, it adds the ID to the set and proceeds to the PostgreSQL transaction block. This guarantees that even if a clinic's Wi-Fi router stutters and sends two identical checkout requests within 10 milliseconds of each other, it is physically impossible for the clinic to double-charge a client or double-deduct inventory.
+When the POST request hits the Waitress WSGI server, it enters a threading.Lock() context manager before ever touching the database. It checks an in-memory OrderedDict functioning as a strict LRU (Least Recently Used) cache. If the ID exists, the thread immediately aborts and returns an error preventing the duplicate sale. If it's new, it logs the ID in the dictionary and proceeds to the PostgreSQL transaction block. By capping this cache at 1,000 items and popping only the oldest entries, we guarantee there is never a microsecond window for double-billing during cache memory resets. This ensures that even if a clinic's Wi-Fi router stutters and sends two identical checkout requests within 10 milliseconds of each other, it is physically impossible for the clinic to double-charge a client or double-deduct inventory.
 
 ### 6. How does your backend handle concurrent writes if two receptionists try to update the exact same patient record simultaneously on different iPads?
 
@@ -83,6 +83,8 @@ First, I utilized GIN indexing on the JSONB columns, preventing full table scans
 ### 18. Explain your hardware fingerprinting process. Which attributes do you composite to lock the software to a specific motherboard?
 
 I intentionally avoided MAC addresses because network cards change and virtual VPN adapters create spoofing chaos. Instead, I query the OS for deeply ingrained, immutable hardware IDs. I extract the Motherboard/System BIOS UUID and combine it with the primary OS Drive Volume Serial Number. These two distinct hardware strings are concatenated and hashed, and a subset of that hash acts as the physical fingerprint. This defeats both simple Virtual Machine cloning and external hard drive swapping.
+
+As an absolute fail-safe, if the Windows OS strictly blocks these hardware queries (e.g., via a highly restricted sandbox or disabled WMI), the system dynamically injects a randomized cryptographic UUID into the hash array on boot. This ensures the architecture "fails securely"—if hardware access is blocked, the machine's fingerprint changes upon every restart, making it mathematically impossible for a bad actor to pirate the software by relying on a static fallback ID.
 
 ### 19. What happens if a clinic replaces their network card, changing their MAC address? How does your DRM handle this edge case?
 
